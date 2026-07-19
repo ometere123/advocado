@@ -1,0 +1,5 @@
+# Copy to `.dev.vars` for local `wrangler dev`. Never commit the real file.
+OKX_API_KEY=
+OKX_SECRET_KEY=
+OKX_PASSPHRASE=
+PAY_TO=0x0f5408b506c74a3eeccc429c5d1c22e31399bfe6

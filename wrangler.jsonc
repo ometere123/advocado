@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "advocado",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI" }
+
+  // Secrets (set with `wrangler secret put <NAME>`, never commit):
+  //   OKX_API_KEY, OKX_SECRET_KEY, OKX_PASSPHRASE  — OKX SA API (settlement)
+  //   PAY_TO                                        — Advocado's payee address (X Layer)
+}
