@@ -109,13 +109,26 @@ export async function runAdvocate(
     " Respond with ONLY a JSON object, no markdown, with exactly these keys: " +
     "summary (string), keyPoints (string[]), draftMessage (string), nextSteps (string[]).";
 
-  const res = (await ai.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
-    messages: [
-      { role: "system", content: fullSystemPrompt },
-      { role: "user", content: user },
-    ],
-    max_tokens: 1400,
-  })) as { response?: unknown };
+  // Bound the model call: a slow or hanging Workers AI response must never hang
+  // Advocado itself — OKX's listing validator (and any real caller) expects a prompt
+  // reply. Observed directly during testing: this exact call sometimes needed several
+  // seconds longer than usual, which is enough to time out an automated one-shot test.
+  // The Ai binding has no confirmed AbortSignal support, so race it against a timer
+  // instead of relying on cancellation — this guarantees OUR response lands on time
+  // even if the underlying call keeps running.
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("Workers AI call timed out after 15s")), 15000)
+  );
+  const res = (await Promise.race([
+    ai.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
+      messages: [
+        { role: "system", content: fullSystemPrompt },
+        { role: "user", content: user },
+      ],
+      max_tokens: 1400,
+    }),
+    timeoutPromise,
+  ])) as { response?: unknown };
 
   let parsed: Partial<Omit<AdvocateOutput, "disclaimer">>;
   if (res.response && typeof res.response === "object") {
