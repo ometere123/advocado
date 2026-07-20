@@ -22,6 +22,26 @@ import { ExactEvmScheme } from "@okxweb3/x402-evm/exact/server";
 import { runAdvocate, SERVICE_LIST, type ServiceId, type AdvocateInput } from "./advocate";
 import { PAGE_HTML } from "./page";
 
+// OKX.AI's own task system resolves the payment token from the accepts entry, and its
+// short internal token list doesn't recognize the SDK's default X Layer USDT0 asset
+// without an explicit `decimals` field (confirmed via `onchainos agent x402-check`,
+// which throws a tokenResolveError on the SDK's default challenge output). Inject
+// decimals + symbol into every challenge so OKX's platform can resolve the amount.
+class XLayerExactScheme extends ExactEvmScheme {
+  override async enhancePaymentRequirements(
+    pr: any,
+    supportedKind: any,
+    extensionKeys: string[]
+  ): Promise<any> {
+    const base = await super.enhancePaymentRequirements(pr, supportedKind, extensionKeys);
+    return {
+      ...base,
+      decimals: 6,
+      extra: { ...(base.extra ?? {}), decimals: 6, symbol: "USDT" },
+    };
+  }
+}
+
 interface Env {
   OKX_API_KEY: string;
   OKX_SECRET_KEY: string;
@@ -59,7 +79,7 @@ function buildApp(env: Env) {
 
   const resourceServer = new x402ResourceServer(facilitator).register(
     "eip155:196",
-    new ExactEvmScheme()
+    new XLayerExactScheme()
   );
 
   const paidRoute = {
