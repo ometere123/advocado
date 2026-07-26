@@ -53,6 +53,18 @@ interface Env {
 const PRICE = "$0.01";
 const SERVICE_IDS = new Set(SERVICE_LIST.map((s) => s.id));
 
+function normalizeInput(service: ServiceId, raw: Record<string, unknown>): AdvocateInput {
+  const situation =
+    typeof raw.situation === "string"
+      ? raw.situation
+      : service === "debt-responder" && typeof raw.collectionsDetails === "string"
+        ? raw.collectionsDetails
+        : "";
+  const contextParts = [raw.context, service === "debt-responder" ? raw.recognizeDebt : undefined]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  return { situation, context: contextParts.join("\n") || undefined };
+}
+
 const demoHits = new Map<string, { count: number; resetAt: number }>();
 const DEMO_LIMIT = 20;
 
@@ -125,7 +137,7 @@ function buildApp(env: Env) {
     if (!SERVICE_IDS.has(service)) {
       return c.json({ error: `Unknown service. Valid: ${[...SERVICE_IDS].join(", ")}` }, 400);
     }
-    const input = (await c.req.json().catch(() => ({}))) as AdvocateInput;
+    const input = normalizeInput(service, await c.req.json().catch(() => ({})));
     if (!input.situation || input.situation.trim().length < 10) {
       return c.json({ error: "Provide `situation`: describe what's going on (min 10 chars)." }, 400);
     }
@@ -163,7 +175,7 @@ function buildApp(env: Env) {
       const q = c.req.query();
       input = { situation: q.situation ?? "", context: q.context };
     } else {
-      input = (await c.req.json().catch(() => ({}))) as AdvocateInput;
+      input = normalizeInput(service, await c.req.json().catch(() => ({})));
     }
     if (!input.situation || input.situation.trim().length < 10) {
       return c.json({ error: "Provide `situation`: describe what's going on (min 10 chars)." }, 400);
